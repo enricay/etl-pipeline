@@ -1,7 +1,9 @@
-version: '3'
+version: '3.8'
+
 services:
   postgres:
-    image: postgres:13
+    image: postgres:15
+    container_name: airflow_postgres
     environment:
       POSTGRES_USER: airflow
       POSTGRES_PASSWORD: airflow
@@ -12,33 +14,44 @@ services:
       - postgres_data:/var/lib/postgresql/data
 
   airflow-webserver:
-    image: apache/airflow:2.4.1
-    environment:
-      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
-      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
-      - AIRFLOW__CORE__FERNET_KEY=fzG2lV5rg60Dv4gbibOiQBX_3Gt2ZlXPAR5bYeFalD0=
-    ports:
-      - "8080:8080"
+    image: apache/airflow:2.7.2
+    container_name: airflow_webserver
+    restart: always
     depends_on:
       - postgres
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+      AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "True"
     volumes:
       - ./dags:/opt/airflow/dags
+      - ./requirements.txt:/requirements.txt
+    ports:
+      - "8080:8080"
+    command: >
+      bash -c "
+        pip install -r /requirements.txt &&
+        airflow db migrate &&
+        airflow users create --username admin --firstname Admin --lastname User --role Admin --email osundarekayode@gmail.com --password admin &&
+        airflow webserver
+      "
 
   airflow-scheduler:
-    image: apache/airflow:2.4.1
-    environment:
-      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+    image: apache/airflow:2.7.2
+    container_name: airflow_scheduler
+    restart: always
     depends_on:
-      - postgres
-    command: ["airflow", "scheduler"]
-
-  airflow-worker:
-    image: apache/airflow:2.4.1
+      - airflow-webserver
     environment:
-      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
-    depends_on:
-      - postgres
-    command: ["airflow", "worker"]
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+    volumes:
+      - ./dags:/opt/airflow/dags
+    command: >
+      bash -c "
+        airflow db migrate &&
+        airflow scheduler
+      "
 
 volumes:
   postgres_data:

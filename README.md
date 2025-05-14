@@ -1,0 +1,2 @@
+
+bucket: waya-etl-bucket

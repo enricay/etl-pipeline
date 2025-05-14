@@ -1,0 +1,6 @@
+apache-airflow==2.7.2
+apache-airflow-providers-http
+apache-airflow-providers-postgres
+apache-airflow-providers-amazon
+pandas
+requests
