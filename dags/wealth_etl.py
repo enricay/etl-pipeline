@@ -3,14 +3,17 @@ from airflow.operators.python import PythonOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.providers.amazon.aws.transfers.s3_to_s3 import S3FileTransfer
 from airflow.utils.dates import days_ago
+from airflow.models import Variable
 
 import pandas as pd
 import requests
 import json
 from datetime import datetime
 
+from airflow.models import Variable
+
 def extract_weather_data():
-    api_key = "your-openweather-api-key"  # Replace with your actual key
+    api_key = Variable.get("weather_api_key")
     city = "London"
     url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}"
     response = requests.get(url)
@@ -43,7 +46,7 @@ def transform_weather_data(**context):
         "sys_country": sys.get("country"),
         "sys_sunrise": sys.get("sunrise"),
         "sys_sunset": sys.get("sunset"),
-        "retrieved_at": datetime.utcnow()
+        "retrieved_at": datetime.now()
     }
 
     df = pd.DataFrame([flat_data])
@@ -71,7 +74,7 @@ def load_to_s3(**context):
     s3_hook.load_file(
         filename='/tmp/weather_data.json',
         key=f'weather/{datetime.now().strftime("%Y-%m-%d")}/data.json',
-        bucket_name='my-etl-bucket',
+        bucket_name='waya-etl-bucket',
         replace=True
     )
 
